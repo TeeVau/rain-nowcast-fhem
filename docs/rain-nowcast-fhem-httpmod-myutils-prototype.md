@@ -1,15 +1,15 @@
-# rain-nowcast-fhem HTTPMOD + myUtils Setup
+# rain-nowcast-fhem HTTPMOD + myUtils Einrichtung
 
 ## Ziel
 
-Dieses Dokument beschreibt die aktuelle, empfohlene FHEM-Integration fuer `rain-nowcast-fhem`.
+Dieses Dokument beschreibt die aktuelle, empfohlene FHEM-Integration für `rain-nowcast-fhem`.
 
 Die Zielarchitektur besteht aus:
 
 - einem `HTTPMOD`-Device
 - einem versteckten Reading `.raw_json`
 - Ableitungslogik in `99_myRainNowcastUtils.pm`
-- optionalen Warnungen ueber `notify`
+- optionalen Warnungen über `notify`
 
 ## Relevante Dateien
 
@@ -19,15 +19,15 @@ Die Zielarchitektur besteht aus:
 
 ## Grundidee
 
-Der aktuelle Rainbow.ai-Payload wird nicht in viele einzelne Forecast-Readings aufgefaechert und dort ausgewertet, sondern gezielt ueber ein verstecktes `.raw_json` verarbeitet.
+Der aktuelle Rainbow.ai-Payload wird nicht in viele einzelne Forecast-Readings aufgefächert und dort ausgewertet, sondern gezielt über ein verstecktes `.raw_json` verarbeitet.
 
 Das reduziert:
 
 - visuelles Reading-Chaos
 - veraltete Forecast-Reste aus alten Abrufen
-- unnoetige Komplexitaet in `notify` und `userReadings`
+- unnötige Komplexität in `notify` und `userReadings`
 
-## Beispielkonfiguration fuer `RainNowcastProto`
+## Beispielkonfiguration für `RainNowcastProto`
 
 ```text
 attr RainNowcastProto icon weather_rain_meter
@@ -82,15 +82,15 @@ reload 99_myRainNowcastUtils.pm
 set RainNowcastProto reread
 ```
 
-Danach solltest du pruefen:
+Danach solltest du prüfen:
 
-- ob `.raw_json` befuellt wird
+- ob `.raw_json` befüllt wird
 - ob `rain_in_minutes` und `rain_state` plausibel sind
 - ob `stateFormat` einen lesbaren Status erzeugt
 
 ## Warnfunktion
 
-Die Datei `99_myRainNowcastUtils.pm` enthaelt zusaetzlich:
+Die Datei `99_myRainNowcastUtils.pm` enthält zusätzlich:
 
 ```perl
 myRainNowcastWarnIfNeeded($triggerKind, $rainDevice, $sourceDevice, $speakCb, $opts)
@@ -100,8 +100,8 @@ myRainNowcastWarnIfNeeded($triggerKind, $rainDevice, $sourceDevice, $speakCb, $o
 
 - `$triggerKind`: `rain_update` oder `contact_open`
 - `$rainDevice`: Name des RainNowcast-Devices, z. B. `RainNowcastProto`
-- `$sourceDevice`: ausloesender Kontakt bei `contact_open`, sonst `undef`
-- `$speakCb`: Callback fuer die Ausgabe an Alexa oder ein Speak-Device
+- `$sourceDevice`: auslösender Kontakt bei `contact_open`, sonst `undef`
+- `$speakCb`: Callback für die Ausgabe an Alexa oder ein Speak-Device
 - `$opts`: optional, z. B. `threshold`, `rain_window_minutes`, `logLevel`
 
 ### Beispielaufrufe in der FHEM-Konsole
@@ -124,7 +124,7 @@ Mit `logLevel` schreibt die Funktion ihren Entscheidungsweg ins FHEM-Log.
 
 ## Automatische Kontakterkennung
 
-Die Warnlogik erkennt relevante Devices automatisch ueber `DEVSPEC`:
+Die Warnlogik erkennt relevante Devices automatisch über `DEVSPEC`:
 
 - `devspec2array("a:IsRoofWindow=1")`
 - `devspec2array("NAME=.*_Kontakt_Tuer.*")`
@@ -132,11 +132,11 @@ Die Warnlogik erkennt relevante Devices automatisch ueber `DEVSPEC`:
 Interpretation:
 
 - `IsRoofWindow=1` kennzeichnet Dachfenster
-- Device-Namen mit `_Kontakt_Tuer` kennzeichnen Tueren
+- Device-Namen mit `_Kontakt_Tuer` kennzeichnen Türen
 - Dachfenster sind bei `open` oder `tilted` offen
-- Tueren sind bei `open` offen
+- Türen sind bei `open` offen
 
-Fuer die Ansagetexte wird bevorzugt `alias` verwendet.
+Für die Ansagetexte wird bevorzugt `alias` verwendet.
 
 ## Notify-Beispiele
 
@@ -157,7 +157,7 @@ define n_rain_warn_open notify RainNowcastProto:rain_in_minutes:.* {
 attr n_rain_warn_open NOTIFYDEV RainNowcastProto
 ```
 
-### 2. Warnung beim Oeffnen eines Kontakts
+### 2. Warnung beim Öffnen eines Kontakts
 
 ```text
 define n_rain_warn_contact_open notify (az_Kontakt_Fenster1|bk_Kontakt_Tuer1):(open|tilted):.* {
@@ -178,15 +178,13 @@ Wichtig:
 
 - `closed` sollte nicht in der Regex stehen
 - `AlexaTTS` musst du gegen dein echtes Speak-Device austauschen
-- vermeide bewusst breite Muster wie `.:(open|tilted)...`, weil sie auf sehr viele
-  FHEM-Events anspringen koennen
-- begrenze `notify` zusaetzlich ueber `NOTIFYDEV`, damit nur relevante Devices
-  ueberhaupt ausgewertet werden
+- vermeide bewusst breite Muster wie `.:(open|tilted)...`, weil sie auf sehr viele FHEM-Events anspringen können
+- begrenze `notify` zusätzlich über `NOTIFYDEV`, damit nur relevante Devices überhaupt ausgewertet werden
 
-## Empfohlene Live-Pruefung
+## Empfohlene Live-Prüfung
 
 1. `set RainNowcastProto reread`
-2. Rohdaten in `.raw_json` pruefen
+2. Rohdaten in `.raw_json` prüfen
 3. `rain_in_minutes` mit dem Payload vergleichen
 4. `rain_update` mit offenem Dachfenster testen
 5. `contact_open` mit einem echten Kontakt-Device testen
@@ -198,5 +196,5 @@ Mit dieser Architektur bekommst du:
 
 - ein kompaktes FHEM-Device
 - nachvollziehbare Regen-Readings
-- keine unnoetigen Forecast-Reading-Fluten
+- keine unnötigen Forecast-Reading-Fluten
 - einfache Sprachwarnungen auf Basis derselben Readings
