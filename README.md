@@ -1,113 +1,84 @@
 # rain-nowcast-fhem
 
+[![Status](https://img.shields.io/badge/status-praxiserprobt-2ea44f)](https://github.com/TeeVau/rain-nowcast-fhem)
+[![Zielgruppe](https://img.shields.io/badge/Zielgruppe-deutsche%20FHEM--Nutzer-1f6feb)](https://github.com/TeeVau/rain-nowcast-fhem)
+[![Technik](https://img.shields.io/badge/FHEM-HTTPMOD%20%2B%20myUtils-ffb000)](https://github.com/TeeVau/rain-nowcast-fhem)
+[![Lizenz](https://img.shields.io/github/license/TeeVau/rain-nowcast-fhem)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/TeeVau/rain-nowcast-fhem?style=social)](https://github.com/TeeVau/rain-nowcast-fhem/stargazers)
+
 ![rain-nowcast-fhem social preview](assets/social-preview/rain-nowcast-fhem-social-preview.png)
 
-Lokale Regen-Nowcast-Logik für FHEM, damit dein Smart Home nicht raten muss, ob in 3 Minuten Regen kommt.
+Lokale Regen-Nowcast-Logik fuer FHEM. Das Projekt holt Rainbow.ai-Daten per `HTTPMOD`, wertet sie in `myUtils` aus und stellt daraus kompakte, automationsfreundliche Readings für FHEM-Installationen bereit.
 
-`rain-nowcast-fhem` nutzt die Rainbow.ai Nowcast API, holt die Daten per
-`HTTPMOD` in FHEM und leitet daraus kompakte, automationsfreundliche Readings
-wie `rain_now`, `rain_in_minutes` oder `rain_state` ab. Darauf aufbauend
-lassen sich auch schlanke `notify`-Warnungen für Alexa oder andere
-TTS-Devices aufsetzen.
+## Ueberblick
 
-## Warum dieses Projekt?
+Statt Wetter-Apps manuell zu pruefen, bekommst du direkt in FHEM nutzbare Zustandswerte wie:
 
-Kurzfristige Regenvorhersagen sind heute gut genug, um echte
-Automationsentscheidungen zu treffen. In der Praxis bedeutet das aber oft noch:
-App öffnen, Radar checken, Intensität einschätzen, selbst entscheiden.
+- `rain_now`
+- `rain_in_minutes`
+- `next_rain_rate`
+- `next_rain_type`
+- `next_rain_begin`
+- `rain_state`
+- `summary_intensity`
 
-Dieses Projekt nimmt dir genau diesen manuellen Schritt ab und macht die
-Information direkt in FHEM nutzbar. Das ist besonders praktisch für:
+Darauf aufbauend lassen sich alltagstaugliche Automationen bauen, zum Beispiel:
 
-- Dachfenster-Warnungen
+- Warnungen fuer geoeffnete Dachfenster
+- Warnungen fuer Tueren oder Balkontueren
 - Markisen- oder Beschattungslogik
 - Giess-Sperren bei bevorstehendem Regen
-- Benachrichtigungen, wenn es gleich losgeht
 
-## Was du bekommst
+## ## Architektur
 
-Die Lösung zielt auf ein kompaktes FHEM-Device mit wenigen, klaren Readings:
+Die Loesung bleibt absichtlich schlank:
 
-- `rain_now`: sagt dir, ob es gerade relevant regnet
-- `rain_in_minutes`: Minuten bis zum ersten relevanten Regen
-- `next_rain_rate`: Intensität des nächsten relevanten Regen-Slots
-- `next_rain_type`: Niederschlagsart des nächsten relevanten Slots
-- `next_rain_begin`: Startzeit des nächsten relevanten Regens
-- `rain_state`: kompakter Zustand wie `dry`, `rain_now`, `rain_soon` oder `later_rain`
-- `summary_intensity`: zusammengefasste Intensität aus der API
+1. `HTTPMOD` holt die Nowcast-Daten fuer einen festen Standort.
+2. Der aktuelle Payload wird in `.raw_json` gespeichert.
+3. `99_myRainNowcastUtils.pm` wertet `forecast[]` aus.
+4. `userReadings` schreiben kompakte Ziel-Readings auf dasselbe Device zurueck.
+5. `notify` kann daraus Sprachwarnungen oder weitere Aktionen ableiten.
 
-Damit kannst du in FHEM direkt auf alltagstaugliche Zustandswerte reagieren,
-statt selbst JSON oder Hunderte Forecast-Readings auszuwerten.
+Die Warnlogik erkennt automatisch:
 
-Optional kannst du dieselben Readings direkt für Warnungen nutzen, zum
-Beispiel:
+- Dachfenster ueber `attr <device> IsRoofWindow 1`
+- Tueren ueber Device-Namen mit `_Kontakt_Tuer`
 
-- Alexa-Ansage, wenn Regen in 30 Minuten kommt und ein Dachfenster offen ist
-- Alexa-Ansage, wenn eine Balkontür geöffnet wird und Regen bereits bald
-  ansteht
+Fuer Ansagetexte wird bevorzugt das FHEM-`alias` 
 
-Die Auswahl der ueberwachten Kontakte kann dabei automatisch erfolgen, zum
-Beispiel ueber `attr IsRoofWindow 1` fuer Dachfenster und ueber Device-Namen
-mit `_Kontakt_Tuer`. Fuer die Ansagetexte wird bevorzugt das FHEM-`alias`
-verwendet, andernfalls der Device-Name.
+## So sieht das in FHEMWEB aus
 
-## So funktioniert es
+![Beispielstatus in FHEMWEB](assets/readme/fhem-state-example.png)
 
-Die Architektur ist bewusst einfach gehalten:
-
-1. `HTTPMOD` holt die Rainbow.ai Nowcast-Daten für einen festen Standort.
-2. Der aktuelle Payload wird in einem versteckten Reading `.raw_json`
-   gespeichert.
-3. `myUtils` wertet daraus das `forecast[]`-Array aus.
-4. `userReadings` schreiben kompakte Ziel-Readings zurück auf dasselbe
-   FHEM-Device.
-
-Darüber hinaus kann eine kleine Funktion in `myUtils` dieselben Readings per
-`notify` für sprachbasierte Warnungen auswerten, ohne neue Readings oder
-weitere FHEM-Devices einzuführen.
-
-Das Ergebnis ist eine lokale, nachvollziehbare FHEM-Lösung ohne eigenes
-Custom-Device-Modul.
+Das Device bleibt kompakt, zeigt aber trotzdem direkt den aktuellen Regenzustand und die naechste relevante Aenderung in lesbarer Form an.
 
 ## Schnellstart
 
-Wenn du bereits FHEM nutzt, brauchst du für den Einstieg nur diese Bausteine:
+Du brauchst:
 
 - einen Rainbow.ai API-Key
-- ein `HTTPMOD`-Device für den Request
+- ein FHEM-Device auf Basis von `HTTPMOD`
 - die Hilfsfunktionen in `99_myRainNowcastUtils.pm`
-- `userReadings`, die die Zielwerte auf dem gleichen Device erzeugen
+- `userReadings` auf demselben Device
 
-Der technische Einstiegspunkt dafür ist:
+Der technische Einstiegspunkt ist:
 
 - [HTTPMOD + myUtils Setup](docs/rain-nowcast-fhem-httpmod-myutils-prototype.md)
 
-Dort findest du die aktuelle Beispielkonfiguration für:
 
-- `summary_intensity`, `latitude`, `longitude`
-- das versteckte `.raw_json`
-- `rain_now`, `rain_in_minutes`, `next_rain_rate`, `next_rain_begin`,
-  `rain_state` und `fresh_slot_count`
-- eine empfohlene FHEMWEB-Darstellung mit `icon`, `devStateIcon` und
-  lesbarem Status-Text
-- eine notify-aufrufbare Warnfunktion für geöffnete Fenster oder Türen
 
-## Mehr technische Details
+## Beispiel-Nutzen im Alltag
 
-Wenn du tiefer einsteigen oder die Lösung nachvollziehen willst:
+- `rain_update`: Regen ist in den naechsten 30 Minuten angesagt und mindestens ein Dachfenster steht offen.
+- `contact_open`: Ein Dachfenster oder eine Tuer wird geoeffnet, waehrend Regen bereits fuer die naechsten 30 Minuten ansteht.
 
+Die Funktion `myRainNowcastWarnIfNeeded(...)` deckt beide Faelle ab und kann direkt aus `notify` aufgerufen werden.
+
+## Dokumentation
+
+- [Idea](docs/rain-nowcast-fhem-idea.md)
 - [FSD](docs/rain-nowcast-fhem-fsd.md)
-- [Phase Plan](docs/rain-nowcast-fhem-phase-plan.md)
-- [Verification Log](docs/rain-nowcast-fhem-verification-log.md)
 - [HTTPMOD + myUtils Setup](docs/rain-nowcast-fhem-httpmod-myutils-prototype.md)
-
-## Contributing
-
-Kleine, saubere Verbesserungen sind willkommen. Wenn du etwas am Verhalten,
-den Readings oder der Architektur änderst, halte bitte auch die passende Doku
-aktuell.
-
-Mehr dazu steht in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Lizenz
 

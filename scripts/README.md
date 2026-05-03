@@ -1,15 +1,24 @@
 # Scripts
 
-Hier liegen projektspezifische Helfer fuer die FHEM-Integration.
+In diesem Ordner liegen die projektspezifischen Helfer fuer die FHEM-Integration.
 
-Aktuell relevant:
+## Relevante Dateien
 
 - `99_myRainNowcastUtils.pm`
 - `render-social-preview.mjs`
 
-Diese Datei ist als Vorlage fuer `99_myRainNowcastUtils.pm` gedacht und
-enthaelt die payload-basierte Auswertung ueber das Hidden-Reading `.raw_json`.
+## 99_myRainNowcastUtils.pm
 
-`render-social-preview.mjs` rendert die editierbare SVG-Vorlage unter
-`assets/social-preview/` in das finale PNG fuer GitHub Social Preview und die
-README-Landingpage.
+Diese Datei enthaelt die eigentliche Ableitungslogik fuer:
+
+- Payload-Auswertung aus `.raw_json`
+- Regen-Readings wie `rain_in_minutes` oder `rain_state`
+- optionale Warnlogik fuer `rain_update` und `contact_open`
+
+Die Datei ist als Vorlage fuer dein FHEM-Setup gedacht und wird dort als
+`99_myRainNowcastUtils.pm` eingebunden.
+
+## render-social-preview.mjs
+
+Dieses Skript rendert die SVG-Vorlage aus `assets/social-preview/` in das PNG,
+das im GitHub-README verwendet wird.

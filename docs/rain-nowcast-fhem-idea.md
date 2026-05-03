@@ -1,83 +1,60 @@
-# rain-nowcast-fhem Project Idea
+# rain-nowcast-fhem Projektidee
 
-## One-sentence goal
+## Kurzfassung
 
-Implement a local FHEM smart-home logic that uses the Rainbow.ai Nowcast API
-to derive actionable short-term rain states for home automation decisions.
+`rain-nowcast-fhem` soll Rainbow.ai-Nowcast-Daten lokal in FHEM nutzbar machen und daraus einfache, robuste Regen-Readings fuer Automationen ableiten.
 
-## Problem and user value
+## Problem
 
-The primary user is the project owner, with the project intended to be
-published on GitHub afterward for reuse by others.
+Kurzfristige Regenvorhersagen sind heute gut genug, um echte Entscheidungen im Alltag zu treffen. In vielen Setups bleibt der letzte Schritt aber manuell:
 
-Today, short-term rain forecasts are available through mobile apps and are
-already reliable enough for manual decision-making, but the workflow is still
-manual: open app, inspect radar, interpret timing and intensity, and decide
-whether action is needed.
+1. Wetter-App oeffnen
+2. Radar oder Nowcast ansehen
+3. selbst entscheiden, ob gleich gehandelt werden muss
 
-The expected improvement is a local automation layer in FHEM that translates
-high-resolution nowcast data into clear, decision-relevant states such as:
+Fuer FHEM ist das unpraktisch. Dort werden klar benannte, maschinenlesbare Zustandswerte gebraucht.
 
-- rain expected in X minutes
-- expected rain intensity
-- usable dry window / rain window
+## Ziel
 
-This should make automations like awning control, notifications, and watering
-locks possible in a robust and explainable way.
+Das Projekt soll aus Rainbow.ai-Daten direkt nutzbare FHEM-Readings erzeugen, zum Beispiel:
 
-## Target environment
+- regnet es jetzt schon?
+- in wie vielen Minuten beginnt relevanter Regen?
+- wie stark wird der erste relevante Regenslot?
+- ist eine Warnung fuer geoeffnete Dachfenster oder Tueren sinnvoll?
 
-- Hardware: Smart-home environment with relevant actuators/sensors in home use
-  `(details open)`
-- Firmware/framework: FHEM automation logic
-- Host/application: Local smart-home installation
-- Network/protocols: Rainbow.ai Nowcast API over network connection `(assumed:
-  HTTPS/API access)`
-- Power source: Not a primary design driver for this project `(assumed)`
+## Zielgruppe
 
-## Inputs and outputs
+Die Loesung richtet sich an deutsche FHEM-Nutzer, die:
 
-| Direction | Item | Notes |
-|---|---|---|
-| Input | Rainbow.ai nowcast forecast data | High-resolution short-term rain forecast for the configured location; exact payload and fields still to be documented. |
-| Input | API key | Credential required to access the Rainbow.ai API. |
-| Input | Concrete location | The specific place for which the nowcast should be evaluated. |
-| Output | FHEM device readings | The system shall expose relevant weather states through readings on one HTTPMOD-based FHEM device. |
-| Output | Decision-relevant FHEM states | Examples: "rain in X minutes", rain intensity, rain window, and automation triggers or inhibit states. |
+- Smart-Home-Logik lokal halten wollen
+- vorhandene FHEM-Bausteine wie `HTTPMOD`, `notify` und `myUtils` nutzen
+- wetterabhaengige Automationen ohne Cloud-Logik aufbauen wollen
 
-## Success criteria
+## Erwarteter Nutzen
 
-- A local FHEM logic can evaluate nowcast data and expose useful states for at
-  least one real automation scenario.
-- The system can warn about relevant near-term weather changes with enough lead
-  time to support actions like closing roof windows.
-- Thresholds, polling intervals, and logic structure are robust enough to avoid
-  obviously noisy or impractical behavior.
+Der konkrete Mehrwert liegt in kleinen, aber alltagstauglichen Automationen:
 
-## Constraints
+- Dachfenster-Warnungen
+- Tuer- oder Balkontuer-Warnungen
+- Markisen- oder Beschattungslogik
+- Giess-Sperren
+- spaetere Folgeautomationen auf Basis derselben Readings
 
-- Cost: Should primarily use existing local smart-home infrastructure.
-- Size/enclosure: Not relevant for the first software-focused version.
-- Power/battery: Not relevant for the first software-focused version.
-- Privacy/security: Logic should run locally in FHEM; exact API credential and
-  data-handling constraints still to be documented.
-- Offline behavior: Needs clarification for API outage or connectivity loss.
+## Technischer Ansatz
 
-## Known unknowns
+Die Loesung bleibt bewusst einfach:
 
-- Exact Rainbow.ai API contract, fields, and authentication details
-- Polling interval strategy
-- Threshold model for "relevant rain"
-- Exact representation of states and readings inside FHEM
-- Which first automation scenarios are mandatory for version 1
+- ein `HTTPMOD`-Device pro Standort
+- ein verstecktes Reading `.raw_json`
+- Ableitungslogik in `99_myRainNowcastUtils.pm`
+- kompakte Ziel-Readings ueber `userReadings`
+- optionale Sprachwarnungen ueber `notify`
 
-## Nice-to-have ideas
+## Nicht-Ziele der aktuellen Version
 
-- Explainable readings or debug output showing why a weather state changed
-- Reusable GitHub-ready structure for other FHEM users
-- Easily extendable logic for additional automation rules
-
-## Explicitly not in v1
-
-- Multiple locations
-- Historical analysis
+- mehrere Standorte in einer einzigen Instanz
+- historische Auswertung
+- eigene GUI
+- ein projektspezifisches FHEM-Custom-Modul
+- Fokus auf andere Smart-Home-Systeme als FHEM
