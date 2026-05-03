@@ -55,7 +55,7 @@ Proposed file layout:
 
 - `docs/rain-nowcast-fhem-httpmod-prototype.md`
 - `docs/rain-nowcast-fhem-httpmod-myutils-prototype.md`
-- `scripts/99_myUtils_RainNowcastProto.pm.example`
+- `scripts/99_myRainNowcastUtils.pm`
 
 The preferred runtime shape is:
 
@@ -251,7 +251,8 @@ No standalone build step in v1
 ### Flash or deploy
 
 ```powershell
-Copy the tested helper functions into `99_myUtils.pm`, reload `myUtils`, and
+Copy the tested helper functions into `99_myRainNowcastUtils.pm`, reload it,
+and
 apply the HTTPMOD attributes in FHEM
 ```
 

@@ -54,7 +54,7 @@ No build in Phase 1
 - FHEM device definition and attributes `(documented in docs)`
 - `docs/rain-nowcast-fhem-httpmod-prototype.md`
 - `docs/rain-nowcast-fhem-httpmod-myutils-prototype.md`
-- `scripts/99_myUtils_RainNowcastProto.pm.example`
+- `scripts/99_myRainNowcastUtils.pm`
 - optional prototype notes under `docs/`
 
 ### Build command

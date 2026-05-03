@@ -29,8 +29,8 @@ Use this file as the evidence trail for Codex-driven work.
 
 ## Open verification gaps
 
-- API contract and payload structure are grundsaetzlich validiert, aber noch
-  nicht vollstaendig gegen Rand- und Fehlerfaelle geprueft.
+- API contract and payload structure are grundsätzlich validiert, aber noch
+  nicht vollständig gegen Rand- und Fehlerfälle geprüft.
 - No standalone syntax check of the final helper code has been executed in a
   local Perl/FHEM runtime from this workspace.
 - Threshold tuning for practical automation use is still open.

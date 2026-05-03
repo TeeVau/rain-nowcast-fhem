@@ -2,22 +2,22 @@
 
 ![rain-nowcast-fhem social preview](assets/social-preview/rain-nowcast-fhem-social-preview.png)
 
-Lokale Regen-Nowcast-Logik fuer FHEM, damit dein Smart Home nicht raten muss, ob in 3 Minuten Regen kommt.
+Lokale Regen-Nowcast-Logik für FHEM, damit dein Smart Home nicht raten muss, ob in 3 Minuten Regen kommt.
 
 `rain-nowcast-fhem` nutzt die Rainbow.ai Nowcast API, holt die Daten per
 `HTTPMOD` in FHEM und leitet daraus kompakte, automationsfreundliche Readings
 wie `rain_now`, `rain_in_minutes` oder `rain_state` ab. Darauf aufbauend
-lassen sich auch schlanke `notify`-Warnungen fuer Alexa oder andere
+lassen sich auch schlanke `notify`-Warnungen für Alexa oder andere
 TTS-Devices aufsetzen.
 
 ## Warum dieses Projekt?
 
 Kurzfristige Regenvorhersagen sind heute gut genug, um echte
 Automationsentscheidungen zu treffen. In der Praxis bedeutet das aber oft noch:
-App oeffnen, Radar checken, Intensitaet einschaetzen, selbst entscheiden.
+App öffnen, Radar checken, Intensität einschätzen, selbst entscheiden.
 
 Dieses Projekt nimmt dir genau diesen manuellen Schritt ab und macht die
-Information direkt in FHEM nutzbar. Das ist besonders praktisch fuer:
+Information direkt in FHEM nutzbar. Das ist besonders praktisch für:
 
 - Dachfenster-Warnungen
 - Markisen- oder Beschattungslogik
@@ -26,68 +26,68 @@ Information direkt in FHEM nutzbar. Das ist besonders praktisch fuer:
 
 ## Was du bekommst
 
-Die Loesung zielt auf ein kompaktes FHEM-Device mit wenigen, klaren Readings:
+Die Lösung zielt auf ein kompaktes FHEM-Device mit wenigen, klaren Readings:
 
 - `rain_now`: sagt dir, ob es gerade relevant regnet
 - `rain_in_minutes`: Minuten bis zum ersten relevanten Regen
-- `next_rain_rate`: Intensitaet des naechsten relevanten Regen-Slots
-- `next_rain_type`: Niederschlagsart des naechsten relevanten Slots
-- `next_rain_begin`: Startzeit des naechsten relevanten Regens
+- `next_rain_rate`: Intensität des nächsten relevanten Regen-Slots
+- `next_rain_type`: Niederschlagsart des nächsten relevanten Slots
+- `next_rain_begin`: Startzeit des nächsten relevanten Regens
 - `rain_state`: kompakter Zustand wie `dry`, `rain_now`, `rain_soon` oder `later_rain`
-- `summary_intensity`: zusammengefasste Intensitaet aus der API
+- `summary_intensity`: zusammengefasste Intensität aus der API
 
 Damit kannst du in FHEM direkt auf alltagstaugliche Zustandswerte reagieren,
 statt selbst JSON oder Hunderte Forecast-Readings auszuwerten.
 
-Optional kannst du dieselben Readings direkt fuer Warnungen nutzen, zum
+Optional kannst du dieselben Readings direkt für Warnungen nutzen, zum
 Beispiel:
 
 - Alexa-Ansage, wenn Regen in 30 Minuten kommt und ein Dachfenster offen ist
-- Alexa-Ansage, wenn eine Balkontuer geoeffnet wird und Regen bereits bald
+- Alexa-Ansage, wenn eine Balkontür geöffnet wird und Regen bereits bald
   ansteht
 
 ## So funktioniert es
 
 Die Architektur ist bewusst einfach gehalten:
 
-1. `HTTPMOD` holt die Rainbow.ai Nowcast-Daten fuer einen festen Standort.
+1. `HTTPMOD` holt die Rainbow.ai Nowcast-Daten für einen festen Standort.
 2. Der aktuelle Payload wird in einem versteckten Reading `.raw_json`
    gespeichert.
 3. `myUtils` wertet daraus das `forecast[]`-Array aus.
-4. `userReadings` schreiben kompakte Ziel-Readings zurueck auf dasselbe
+4. `userReadings` schreiben kompakte Ziel-Readings zurück auf dasselbe
    FHEM-Device.
 
-Darueber hinaus kann eine kleine Funktion in `myUtils` dieselben Readings per
-`notify` fuer sprachbasierte Warnungen auswerten, ohne neue Readings oder
-weitere FHEM-Devices einzufuehren.
+Darüber hinaus kann eine kleine Funktion in `myUtils` dieselben Readings per
+`notify` für sprachbasierte Warnungen auswerten, ohne neue Readings oder
+weitere FHEM-Devices einzuführen.
 
-Das Ergebnis ist eine lokale, nachvollziehbare FHEM-Loesung ohne eigenes
+Das Ergebnis ist eine lokale, nachvollziehbare FHEM-Lösung ohne eigenes
 Custom-Device-Modul.
 
 ## Schnellstart
 
-Wenn du bereits FHEM nutzt, brauchst du fuer den Einstieg nur diese Bausteine:
+Wenn du bereits FHEM nutzt, brauchst du für den Einstieg nur diese Bausteine:
 
 - einen Rainbow.ai API-Key
-- ein `HTTPMOD`-Device fuer den Request
-- die Hilfsfunktionen in `99_myUtils.pm`
+- ein `HTTPMOD`-Device für den Request
+- die Hilfsfunktionen in `99_myRainNowcastUtils.pm`
 - `userReadings`, die die Zielwerte auf dem gleichen Device erzeugen
 
-Der technische Einstiegspunkt dafuer ist:
+Der technische Einstiegspunkt dafür ist:
 
 - [HTTPMOD + myUtils Setup](docs/rain-nowcast-fhem-httpmod-myutils-prototype.md)
 
-Dort findest du die aktuelle Beispielkonfiguration fuer:
+Dort findest du die aktuelle Beispielkonfiguration für:
 
 - `summary_intensity`, `latitude`, `longitude`
 - das versteckte `.raw_json`
 - `rain_now`, `rain_in_minutes`, `next_rain_rate`, `next_rain_begin`,
   `rain_state` und `fresh_slot_count`
-- eine notify-aufrufbare Warnfunktion fuer geoeffnete Fenster oder Tueren
+- eine notify-aufrufbare Warnfunktion für geöffnete Fenster oder Türen
 
 ## Mehr technische Details
 
-Wenn du tiefer einsteigen oder die Loesung nachvollziehen willst:
+Wenn du tiefer einsteigen oder die Lösung nachvollziehen willst:
 
 - [FSD](docs/rain-nowcast-fhem-fsd.md)
 - [Phase Plan](docs/rain-nowcast-fhem-phase-plan.md)
@@ -97,12 +97,11 @@ Wenn du tiefer einsteigen oder die Loesung nachvollziehen willst:
 ## Contributing
 
 Kleine, saubere Verbesserungen sind willkommen. Wenn du etwas am Verhalten,
-den Readings oder der Architektur aenderst, halte bitte auch die passende Doku
+den Readings oder der Architektur änderst, halte bitte auch die passende Doku
 aktuell.
 
 Mehr dazu steht in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Lizenz
 
-Vor einem echten Public Release sollte noch eine saubere Open-Source-Lizenz
-ergaenzt werden. Aktuell ist noch keine Lizenzdatei im Repository enthalten.
+Dieses Projekt steht unter der [MIT-Lizenz](LICENSE).

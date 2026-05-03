@@ -14,9 +14,10 @@ custom FHEM device module.
 
 Example helper source in this repository:
 
-- `scripts/99_myUtils_RainNowcastProto.pm.example`
+- `scripts/99_myRainNowcastUtils.pm`
 
-This is an example source file for the FHEM `99_myUtils.pm` workflow. It is not
+This is an example source file for the FHEM `99_myRainNowcastUtils.pm`
+workflow. It is not
 auto-loaded from this repository as-is.
 
 ## Prototype approach
@@ -83,7 +84,7 @@ attr RainNowcastProto stateFormat { ReadingsVal($name,"rain_state",ReadingsVal($
 Suggested manual refresh after loading the helper:
 
 ```text
-reload 99_myUtils.pm
+reload 99_myRainNowcastUtils.pm
 set RainNowcastProto reread
 ```
 
@@ -128,7 +129,7 @@ Expected arguments:
   `rain_window_minutes`
 
 The list of relevant roof windows and doors is intentionally defined directly
-inside `scripts/99_myUtils_RainNowcastProto.pm.example` via the internal helper
+inside `scripts/99_myRainNowcastUtils.pm` via the internal helper
 `_rainNowcastProto_warn_targets()`.
 
 Adjust those entries to your own devices before using the warning helper.
@@ -201,8 +202,8 @@ This is only a prototype default and should be tuned with real observations.
 
 ## Recommended test sequence
 
-1. Copy the helper functions into your FHEM `99_myUtils.pm`.
-2. Reload `myUtils` in FHEM.
+1. Copy the helper functions into your FHEM `99_myRainNowcastUtils.pm`.
+2. Reload `99_myRainNowcastUtils.pm` in FHEM.
 3. Add the `userReadings` attribute to `RainNowcastProto`.
 4. Optionally add one or both warning `notify` rules.
 5. Trigger `set RainNowcastProto reread`.

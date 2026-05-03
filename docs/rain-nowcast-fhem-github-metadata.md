@@ -42,7 +42,7 @@ Use this file as the source of truth for GitHub-facing repository metadata.
 | README.md | Present | Project-specific and aligned to the selected architecture. |
 | CONTRIBUTING.md | Present | Project-specific contribution guidance. |
 | SECURITY.md | Present | Basic handling guidance for API keys and sensitive config. |
-| LICENSE | TODO | Choose and add a real license before publishing publicly. |
+| LICENSE | Present | MIT license selected for simple reuse and low-friction public sharing. |
 | .github/CODEOWNERS | Optional | Add only if collaborative maintenance needs it. |
 | Issue templates | Optional | Can be added once the repo is public. |
 | Pull request template | Optional | Can be added once the repo is public. |
@@ -61,4 +61,5 @@ Use this file as the source of truth for GitHub-facing repository metadata.
 - First release milestone: stable documented HTTPMOD + myUtils setup
 - Documentation gap: final FHEM copy-paste setup and error-handling notes
 - CI gap: none required for v1, as the project is configuration- and runtime-focused
+- License choice: MIT
 - Labels or issue triage notes: add only after public repo setup
