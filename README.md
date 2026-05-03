@@ -29,7 +29,7 @@ Darauf aufbauend lassen sich alltagstaugliche Automationen bauen, zum Beispiel:
 - Markisen- oder Beschattungslogik
 - Giess-Sperren bei bevorstehendem Regen
 
-## ## Architektur
+## Architektur
 
 Die Loesung bleibt absichtlich schlank:
 
