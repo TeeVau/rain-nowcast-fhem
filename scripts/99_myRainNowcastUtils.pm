@@ -4,16 +4,12 @@ use warnings;
 use JSON::PP qw(decode_json);
 use POSIX qw(strftime);
 
+our $rainNowcastProtoDoorNameRe = qr/_Kontakt_Tuer/i;
+
 sub
 myUtils_Initialize($$)
 {
   my ($hash) = @_;
-}
-
-sub _rainNowcastProto_latest_update($)
-{
-  my ($name) = @_;
-  return ReadingsTimestamp($name, "summary_intensity", "");
 }
 
 sub _rainNowcastProto_raw_json($)
@@ -56,25 +52,31 @@ sub _rainNowcastProto_extract_json_text($)
   return "";
 }
 
-sub _rainNowcastProto_payload($)
+sub _rainNowcastProto_payload($;$)
 {
-  my ($name) = @_;
+  my ($name, $logLevel) = @_;
   my $raw = _rainNowcastProto_raw_json($name);
   return undef if !$raw;
 
   my $jsonText = _rainNowcastProto_extract_json_text($raw);
+  _rainNowcastProto_log($name, $logLevel,
+    "could not extract a decodable JSON document from raw payload")
+      if !$jsonText && defined $logLevel;
   return undef if !$jsonText;
 
   my $payload = eval { decode_json($jsonText) };
+  _rainNowcastProto_log($name, $logLevel,
+    "decode_json failed in payload parser: $@")
+      if !$payload && $@ && defined $logLevel;
   return undef if !$payload || ref($payload) ne "HASH";
 
   return $payload;
 }
 
-sub _rainNowcastProto_slots($)
+sub _rainNowcastProto_slots($;$)
 {
-  my ($name) = @_;
-  my $payload = _rainNowcastProto_payload($name);
+  my ($name, $logLevel) = @_;
+  my $payload = _rainNowcastProto_payload($name, $logLevel);
   return [] if !$payload;
 
   my $forecast = $payload->{forecast};
@@ -99,12 +101,12 @@ sub _rainNowcastProto_slots($)
   return \@slots;
 }
 
-sub _rainNowcastProto_first_relevant($$)
+sub _rainNowcastProto_first_relevant($$;$)
 {
-  my ($name, $threshold) = @_;
+  my ($name, $threshold, $logLevel) = @_;
   $threshold = 0.1 if !defined $threshold;
 
-  my $slots = _rainNowcastProto_slots($name);
+  my $slots = _rainNowcastProto_slots($name, $logLevel);
   return undef if !@$slots;
 
   for my $slot (@$slots) {
@@ -179,41 +181,99 @@ sub myRainNowcastFreshSlotCount($)
   return scalar @$slots;
 }
 
-sub _rainNowcastProto_warn_targets()
+sub _rainNowcastProtoStateLabel($)
 {
-  # Customize this list to the roof windows and doors you want to monitor.
-  return [
-    {
-      device  => "DachfensterBad",
-      reading => "state",
-      open_re => qr/^(open|tilted)$/i,
-      label   => "Dachfenster Bad",
-    },
-    {
-      device  => "DachfensterSchlafzimmer",
-      reading => "state",
-      open_re => qr/^(open|tilted)$/i,
-      label   => "Dachfenster Schlafzimmer",
-    },
-    {
-      device  => "Balkontuer",
-      reading => "state",
-      open_re => qr/^open$/i,
-      label   => "Balkontuer",
-    },
-  ];
+  my ($state) = @_;
+  my %label = (
+    "dry"        => "Trocken",
+    "rain_now"   => "Regen jetzt",
+    "rain_soon"  => "Regen bald",
+    "later_rain" => "Regen spaeter",
+  );
+  return $label{$state} // $state;
 }
 
-sub _rainNowcastProto_warn_target_by_device($)
+sub _rainNowcastProtoIntensityLabel($)
+{
+  my ($intensity) = @_;
+  my %label = (
+    "none"     => "keine",
+    "light"    => "leicht",
+    "moderate" => "moderat",
+    "heavy"    => "stark",
+    "extreme"  => "extrem",
+    "intense"  => "intens",
+  );
+  return $label{$intensity} // $intensity;
+}
+
+sub myRainNowcastStateFormat($)
+{
+  my ($name) = @_;
+  my $state = ReadingsVal($name, "rain_state",
+    ReadingsVal($name, "summary_intensity", "init"));
+  my $intensity = ReadingsVal($name, "summary_intensity", "init");
+  my $minutes = ReadingsVal($name, "rain_in_minutes", "?");
+
+  return "RN:$state\n<br/>"
+    . _rainNowcastProtoStateLabel($state)
+    . " "
+    . _rainNowcastProtoIntensityLabel($intensity)
+    . " (in "
+    . $minutes
+    . " Min.)";
+}
+
+sub _rainNowcastProto_log($$$)
+{
+  my ($device, $level, $message) = @_;
+  my $logDevice = defined $device && $device ne "" ? $device : "RainNowcastProto";
+  Log3 $logDevice, $level, "rain-nowcast-warn ($logDevice) - $message";
+}
+
+sub _rainNowcastProto_warn_candidate_devices(;$$)
+{
+  my ($logDevice, $logLevel) = @_;
+  my %seen;
+  my @devices;
+
+  for my $spec ("a:IsRoofWindow=1", "NAME=.*_Kontakt_Tuer.*") {
+    my @matched = eval { devspec2array($spec) };
+    _rainNowcastProto_log($logDevice, $logLevel,
+      "devspec2array failed for '$spec': $@")
+        if $@ && defined $logLevel;
+    next if !@matched;
+
+    for my $device (@matched) {
+      next if !defined $device || $device eq "";
+      next if !$defs{$device};
+      next if $seen{$device}++;
+      push @devices, $device;
+    }
+  }
+
+  return \@devices;
+}
+
+sub _rainNowcastProto_warn_target_for_device($)
 {
   my ($device) = @_;
   return undef if !defined $device || $device eq "";
 
-  my $targets = _rainNowcastProto_warn_targets();
-  for my $target (@$targets) {
-    next if !$target || ref($target) ne "HASH";
-    next if !defined $target->{device};
-    return $target if $target->{device} eq $device;
+  if (AttrVal($device, "IsRoofWindow", "") eq "1") {
+    return {
+      device  => $device,
+      reading => "state",
+      open_re => qr/^(open|tilted)$/i,
+    };
+  }
+
+  if ($device =~ /$rainNowcastProtoDoorNameRe/) {
+    return {
+      device  => $device,
+      reading => "state",
+      open_re => qr/^open$/i,
+    };
   }
 
   return undef;
@@ -233,31 +293,32 @@ sub _rainNowcastProto_is_target_open($)
   return $value =~ /$openRe/ ? 1 : 0;
 }
 
-sub _rainNowcastProto_open_warn_targets()
+sub _rainNowcastProto_open_warn_targets($)
 {
-  my $targets = _rainNowcastProto_warn_targets();
-  my @openTargets;
+  my ($devices) = @_;
+  return [] if !$devices || ref($devices) ne "ARRAY";
 
-  for my $target (@$targets) {
+  my @openTargets;
+  for my $device (@$devices) {
+    my $target = _rainNowcastProto_warn_target_for_device($device);
+    next if !$target;
     push @openTargets, $target if _rainNowcastProto_is_target_open($target);
   }
 
   return \@openTargets;
 }
 
-sub _rainNowcastProto_join_labels($)
+sub _rainNowcastProto_target_name($)
 {
-  my ($targets) = @_;
-  return "" if !$targets || ref($targets) ne "ARRAY" || !@$targets;
+  my ($target) = @_;
+  return "" if !$target || ref($target) ne "HASH";
 
-  my @labels = map { $_->{label} // $_->{device} // "" } @$targets;
-  @labels = grep { defined $_ && $_ ne "" } @labels;
-  return "" if !@labels;
-  return $labels[0] if @labels == 1;
-  return join(" und ", @labels) if @labels == 2;
+  my $device = $target->{device} // "";
+  return "" if $device eq "";
 
-  my $last = pop @labels;
-  return join(", ", @labels) . " und " . $last;
+  my $alias = AttrVal($device, "alias", "");
+  return $alias if defined $alias && $alias ne "";
+  return $device;
 }
 
 sub _rainNowcastProto_warn_text($$$)
@@ -265,20 +326,31 @@ sub _rainNowcastProto_warn_text($$$)
   my ($triggerKind, $minutes, $targets) = @_;
   return "" if !$targets || ref($targets) ne "ARRAY" || !@$targets;
 
-  my $labels = _rainNowcastProto_join_labels($targets);
-  return "" if $labels eq "";
+  my @targetNames = map { _rainNowcastProto_target_name($_) } @$targets;
+  @targetNames = grep { defined $_ && $_ ne "" } @targetNames;
+  return "" if !@targetNames;
+
+  my $targetNames = $targetNames[0];
+  if (@targetNames == 2) {
+    $targetNames = join(" und ", @targetNames);
+  } elsif (@targetNames > 2) {
+    my $last = pop @targetNames;
+    $targetNames = join(", ", @targetNames) . " und " . $last;
+  }
+
+  return "" if $targetNames eq "";
 
   if ($triggerKind eq "rain_update") {
-    return "Achtung, es regnet bereits. Offen sind $labels. Bitte schliessen."
+    return "Achtung, es regnet bereits. Offen sind $targetNames. Bitte schliessen."
       if $minutes <= 0;
-    return "Achtung, Regen in $minutes Minuten. Offen sind $labels. Bitte schliessen.";
+    return "Achtung, Regen in $minutes Minuten. Offen sind $targetNames. Bitte schliessen.";
   }
 
   if ($triggerKind eq "contact_open") {
-    my $label = $targets->[0]{label} // $targets->[0]{device} // "ein Kontakt";
-    return "Achtung, $label ist geoeffnet und es regnet bereits."
+    my $targetName = _rainNowcastProto_target_name($targets->[0]);
+    return "Achtung, $targetName ist geoeffnet und es regnet bereits."
       if $minutes <= 0;
-    return "Achtung, $label ist geoeffnet und Regen ist in $minutes Minuten angesagt.";
+    return "Achtung, $targetName ist geoeffnet und Regen ist in $minutes Minuten angesagt.";
   }
 
   return "";
@@ -293,30 +365,90 @@ sub myRainNowcastWarnIfNeeded($$$$;$)
   my $rainWindowMinutes = defined $opts->{rain_window_minutes}
     ? $opts->{rain_window_minutes}
     : 30;
+  my $logLevel = defined $opts->{logLevel} ? $opts->{logLevel} : 4;
 
-  return "" if !$triggerKind || !$rainDevice;
+  if (!$triggerKind || !$rainDevice) {
+    _rainNowcastProto_log($rainDevice, $logLevel,
+      "skip: missing triggerKind or rainDevice");
+    return "";
+  }
 
-  my $minutes = myRainNowcastMinutes($rainDevice, $threshold);
-  return "" if !defined $minutes || $minutes < 0 || $minutes > $rainWindowMinutes;
+  _rainNowcastProto_log($rainDevice, $logLevel,
+    "start: triggerKind=$triggerKind sourceDevice="
+    . (defined $sourceDevice ? $sourceDevice : "undef")
+    . " threshold=$threshold rainWindowMinutes=$rainWindowMinutes");
+
+  my $slot = _rainNowcastProto_first_relevant($rainDevice, $threshold, $logLevel);
+  my $minutes = -1;
+  if ($slot) {
+    $minutes = int(($slot->{begin} - time()) / 60);
+    $minutes = 0 if $minutes < 0;
+  }
+  if ($minutes < 0) {
+    _rainNowcastProto_log($rainDevice, $logLevel,
+      "skip: no relevant rain found (minutes=$minutes)");
+    return "";
+  }
+  if ($minutes > $rainWindowMinutes) {
+    _rainNowcastProto_log($rainDevice, $logLevel,
+      "skip: rain outside window (minutes=$minutes window=$rainWindowMinutes)");
+    return "";
+  }
+
+  _rainNowcastProto_log($rainDevice, $logLevel,
+    "rain ok: minutes=$minutes");
 
   my $targets;
   if ($triggerKind eq "rain_update") {
-    $targets = _rainNowcastProto_open_warn_targets();
-    return "" if !@$targets;
+    my $candidateDevices = _rainNowcastProto_warn_candidate_devices($rainDevice, $logLevel);
+    _rainNowcastProto_log($rainDevice, $logLevel,
+      "rain_update candidates: "
+      . (@$candidateDevices ? join(", ", @$candidateDevices) : "<none>"));
+
+    $targets = _rainNowcastProto_open_warn_targets($candidateDevices);
+    _rainNowcastProto_log($rainDevice, $logLevel,
+      "rain_update open targets: "
+      . (@$targets ? join(", ", map { $_->{device} // "" } @$targets) : "<none>"));
+    if (!@$targets) {
+      _rainNowcastProto_log($rainDevice, $logLevel,
+        "skip: no open monitored devices");
+      return "";
+    }
   } elsif ($triggerKind eq "contact_open") {
-    my $target = _rainNowcastProto_warn_target_by_device($sourceDevice);
-    return "" if !$target;
-    return "" if !_rainNowcastProto_is_target_open($target);
+    my $target = _rainNowcastProto_warn_target_for_device($sourceDevice);
+    if (!$target) {
+      _rainNowcastProto_log($rainDevice, $logLevel,
+        "skip: sourceDevice is not a monitored target");
+      return "";
+    }
+    if (!_rainNowcastProto_is_target_open($target)) {
+      _rainNowcastProto_log($rainDevice, $logLevel,
+        "skip: sourceDevice is monitored but not currently open");
+      return "";
+    }
     $targets = [$target];
+    _rainNowcastProto_log($rainDevice, $logLevel,
+      "contact_open target ok: " . join(", ", map { $_->{device} // "" } @$targets));
   } else {
+    _rainNowcastProto_log($rainDevice, $logLevel,
+      "skip: unsupported triggerKind=$triggerKind");
     return "";
   }
 
   my $text = _rainNowcastProto_warn_text($triggerKind, $minutes, $targets);
-  return "" if $text eq "";
+  if ($text eq "") {
+    _rainNowcastProto_log($rainDevice, $logLevel,
+      "skip: warning text generation returned empty string");
+    return "";
+  }
+
+  _rainNowcastProto_log($rainDevice, $logLevel,
+    "warn text: $text");
 
   if ($speakCb && ref($speakCb) eq "CODE") {
     $speakCb->($text);
+    _rainNowcastProto_log($rainDevice, $logLevel,
+      "speak callback executed");
   }
 
   return $text;

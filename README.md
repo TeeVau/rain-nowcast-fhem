@@ -46,6 +46,11 @@ Beispiel:
 - Alexa-Ansage, wenn eine Balkontür geöffnet wird und Regen bereits bald
   ansteht
 
+Die Auswahl der ueberwachten Kontakte kann dabei automatisch erfolgen, zum
+Beispiel ueber `attr IsRoofWindow 1` fuer Dachfenster und ueber Device-Namen
+mit `_Kontakt_Tuer`. Fuer die Ansagetexte wird bevorzugt das FHEM-`alias`
+verwendet, andernfalls der Device-Name.
+
 ## So funktioniert es
 
 Die Architektur ist bewusst einfach gehalten:
@@ -83,6 +88,8 @@ Dort findest du die aktuelle Beispielkonfiguration für:
 - das versteckte `.raw_json`
 - `rain_now`, `rain_in_minutes`, `next_rain_rate`, `next_rain_begin`,
   `rain_state` und `fresh_slot_count`
+- eine empfohlene FHEMWEB-Darstellung mit `icon`, `devStateIcon` und
+  lesbarem Status-Text
 - eine notify-aufrufbare Warnfunktion für geöffnete Fenster oder Türen
 
 ## Mehr technische Details

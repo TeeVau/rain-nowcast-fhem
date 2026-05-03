@@ -59,6 +59,8 @@ The following block is based on the already proven live device shape
 `RainNowcastProto`:
 
 ```text
+attr RainNowcastProto icon weather_rain_meter
+attr RainNowcastProto devStateIcon RN.dry:weather_sun@yellow RN.rain_now:weather_rain_heavy@blue RN.rain_soon:weather_rain@blue RN.later_rain:weather_cloudy
 attr RainNowcastProto reading01JSON summary_intensity
 attr RainNowcastProto reading01Name summary_intensity
 attr RainNowcastProto reading02JSON latitude
@@ -78,7 +80,7 @@ attr RainNowcastProto userReadings \
   next_rain_begin:summary_intensity.* { myRainNowcastBegin($name,0.1) },\
   rain_state:summary_intensity.* { myRainNowcastState($name,0.1) },\
   fresh_slot_count:summary_intensity.* { myRainNowcastFreshSlotCount($name) }
-attr RainNowcastProto stateFormat { ReadingsVal($name,"rain_state",ReadingsVal($name,"summary_intensity","init")) }
+attr RainNowcastProto stateFormat { myRainNowcastStateFormat($name) }
 ```
 
 Suggested manual refresh after loading the helper:
@@ -88,10 +90,30 @@ reload 99_myRainNowcastUtils.pm
 set RainNowcastProto reread
 ```
 
+If the weather icons do not appear in FHEMWEB yet, refresh the icon set once:
+
+```text
+attr WEB iconPath fhemSVG:openautomation:default
+set WEB rereadicons
+```
+
+Why the `RN:` prefix?
+
+- this follows the proven FHEM multi-line `stateFormat` plus `devStateIcon`
+  pattern where the first line is only a hidden marker for the icon regex
+- `RN.dry` in `devStateIcon` matches the first line `RN:dry`
+- the second line starts with `<br/>`, so the readable text is rendered below
+  the icon instead of being folded into the icon line
+
 ## Expected result on the same device
 
 After the refresh, the same `RainNowcastProto` device should expose both:
 
+- the fixed device icon `weather_rain_meter`
+- a `devStateIcon` that maps `dry`, `rain_now`, `rain_soon`, and
+  `later_rain` to weather icons
+- a second visible state line with German state labels such as
+  `Regen bald leicht (in 12 Min.)`
 - compact summary readings such as `summary_intensity`
 - the hidden payload reading `.raw_json`
 - derived helper readings such as `rain_in_minutes` and `rain_state`
@@ -108,6 +130,8 @@ FHEM devices.
 - `next_rain_begin`: local timestamp of the first relevant fresh rain slot
 - `rain_state`: `dry`, `rain_now`, `rain_soon`, or `later_rain`
 - `fresh_slot_count`: number of currently trusted fresh forecast slots
+- `myRainNowcastStateFormat($name)`: returns the multi-line FHEMWEB `STATE`
+  string used by `devStateIcon` plus the translated user-facing status text
 
 ## Optional warning helper for Alexa or TTS
 
@@ -128,38 +152,53 @@ Expected arguments:
 - `$opts`: optional hashref, currently intended for `threshold` and
   `rain_window_minutes`
 
-The list of relevant roof windows and doors is intentionally defined directly
-inside `scripts/99_myRainNowcastUtils.pm` via the internal helper
-`_rainNowcastProto_warn_targets()`.
+For debugging, you can also pass `logLevel`, for example:
 
-Adjust those entries to your own devices before using the warning helper.
-
-Example internal target shape:
-
-```perl
-{
-  device  => "DachfensterBad",
-  reading => "state",
-  open_re => qr/^(open|tilted)$/i,
-  label   => "Dachfenster Bad",
-}
+```text
+{ myRainNowcastWarnIfNeeded("rain_update", "RainNowcastProto", undef, undef, { rain_window_minutes => 200, logLevel => 3 }) }
 ```
+
+This writes the decision path into the FHEM log via `Log3`.
+
+Two useful live test calls are:
+
+```text
+{ myRainNowcastWarnIfNeeded("rain_update", "RainNowcastProto", undef, undef, { rain_window_minutes => 200 }) }
+```
+
+```text
+{ myRainNowcastWarnIfNeeded("contact_open", "RainNowcastProto", "az_Kontakt_Fenster1", undef, { rain_window_minutes => 200, logLevel => 3 }) }
+```
+
+The warning helper now discovers the monitored devices automatically via
+`DEVSPEC`:
+
+- `devspec2array("a:IsRoofWindow=1")`
+- `devspec2array("NAME=.*_Kontakt_Tuer.*")`
+
+Interpretation:
+
+- roof windows are treated as open on `open` or `tilted`
+- `_Kontakt_Tuer` devices are treated as open on `open`
+
+For spoken warnings, the helper now uses the FHEM `alias` attribute of each
+configured device. If no `alias` is set, it falls back to the device name.
 
 ## Notify examples
 
 The warning helper is designed for two small `notify` rules.
 
-### 1. Warn on RainNowcast updates if something is already open
+### 1. Ready-to-paste notify: warn on RainNowcast updates if something is already open
 
 ```text
-define n_rain_warn_open notify RainNowcastProto:rain_in_minutes:.* {
+define n_rain_warn_open notify ^RainNowcastProto:rain_in_minutes:.*$ {
   myRainNowcastWarnIfNeeded(
     "rain_update",
     "RainNowcastProto",
     undef,
     sub {
       my ($text) = @_;
-      fhem("set <YOUR_SPEAK_DEVICE> speak $text");
+      fhem("set AlexaTTS speak $text");
     }
   );
 }
@@ -167,20 +206,21 @@ define n_rain_warn_open notify RainNowcastProto:rain_in_minutes:.* {
 
 This covers the case:
 
+- the RainNowcast device refreshed `rain_in_minutes`
 - rain is expected within the next 30 minutes
-- one of the internally configured roof-window or door devices is open
+- at least one auto-detected roof-window or `_Kontakt_Tuer` device is open
 
-### 2. Warn immediately when a monitored contact opens before rain
+### 2. Ready-to-paste notify: warn immediately when a monitored contact opens before rain
 
 ```text
-define n_rain_warn_contact_open notify DachfensterBad|DachfensterSchlafzimmer|Balkontuer:open|tilted {
+define n_rain_warn_contact_open notify .:(open|tilted|state: open|state: tilted)$ {
   myRainNowcastWarnIfNeeded(
     "contact_open",
     "RainNowcastProto",
     $NAME,
     sub {
       my ($text) = @_;
-      fhem("set <YOUR_SPEAK_DEVICE> speak $text");
+      fhem("set AlexaTTS speak $text");
     }
   );
 }
@@ -188,12 +228,23 @@ define n_rain_warn_contact_open notify DachfensterBad|DachfensterSchlafzimmer|Ba
 
 This covers the case:
 
-- a monitored contact changes to an open state
+- any contact-like device emits an open or tilted event
 - the existing nowcast readings already indicate rain within the next
   30 minutes
+- `closed` events are intentionally ignored and should not be part of the
+  notify regex
 
 The helper returns an empty string when no warning is required, so a matching
 notify event without relevant rain or without a configured contact stays quiet.
+
+Adjust before use:
+
+- replace `AlexaTTS` with your real speak or Alexa device
+- set `attr <device> IsRoofWindow 1` on every roof-window device you want to
+  include
+- ensure your door device name contains `_Kontakt_Tuer`
+- if your contact devices use plain `open|closed` events, keep the notify
+  regex narrow and do not include `closed`
 
 ## Threshold assumption
 
