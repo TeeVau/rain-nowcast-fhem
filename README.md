@@ -36,7 +36,7 @@ Die Lösung bleibt bewusst schlank:
 1. `HTTPMOD` holt die Nowcast-Daten für einen festen Standort.
 2. Der aktuelle Payload wird in `.raw_json` gespeichert.
 3. `99_myRainNowcastUtils.pm` wertet `forecast[]` aus.
-4. `userReadings` schreiben kompakte Ziel-Readings auf dasselbe Device zurück.
+4. Ein einzelner `userReadings`-Trigger ruft `myRainNowcastUpdateReadings(...)` auf und schreibt kompakte Ziel-Readings auf dasselbe Device zurück.
 5. `notify` kann daraus Sprachwarnungen oder weitere Aktionen ableiten.
 
 Die Warnlogik erkennt automatisch:
@@ -71,13 +71,14 @@ Dort findest du:
 - die Reading-Ableitung über `.raw_json`
 - Debug-Aufrufe für die FHEM-Konsole
 - `notify`-Beispiele für `rain_update` und `contact_open`
+- einen vereinfachten Helfer für `contact_open`, der aus `az_Kontakt_*` automatisch `az_alexa` ableitet
 
 ## Beispiel-Nutzen im Alltag
 
 - `rain_update`: Regen ist in den nächsten 30 Minuten angesagt und mindestens ein Dachfenster steht offen.
 - `contact_open`: Ein Dachfenster oder eine Tür wird geöffnet, während Regen bereits für die nächsten 30 Minuten ansteht.
 
-Die Funktion `myRainNowcastWarnIfNeeded(...)` deckt beide Fälle ab und kann direkt aus `notify` aufgerufen werden.
+Die Funktion `myRainNowcastWarnIfNeeded(...)` deckt beide Fälle ab. Für den häufigen `contact_open`-Fall gibt es zusätzlich `myRainNowcastWarnContactOpenAlexa(...)` für ein deutlich schlankeres `notify`.
 
 ## Dokumentation
 
